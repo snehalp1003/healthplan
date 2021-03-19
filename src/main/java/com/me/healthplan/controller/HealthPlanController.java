@@ -69,6 +69,28 @@ public class HealthPlanController {
             @RequestBody(required = false) String healthPlan)
             throws Exception, JSONException {
 
+        // Authorize request
+        String authorization = headers.getFirst("Authorization");
+        if (authorization == null || authorization.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    new JSONObject().put("Error", "Empty Token !").toString());
+        }
+
+        boolean isValid;
+        try {
+            String token = authorization.split(" ")[1];
+            isValid = healthPlanAuthorizationService.validateToken(token);
+        } catch (Exception e) {
+            System.out.println(e);
+            isValid = false;
+        }
+
+        if (!isValid)
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new JSONObject()
+                            .put("Authetication Error: ", "Invalid Token !")
+                            .toString());
+
         // Null & Empty Checks
         if (healthPlan == null || healthPlan.isEmpty()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -109,6 +131,28 @@ public class HealthPlanController {
             @RequestHeader HttpHeaders headers, @PathVariable String objectId,
             @PathVariable String type) throws Exception, JSONException {
 
+        // Authorize request
+        String authorization = headers.getFirst("Authorization");
+        if (authorization == null || authorization.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    new JSONObject().put("Error", "Empty Token !").toString());
+        }
+
+        boolean isValid;
+        try {
+            String token = authorization.split(" ")[1];
+            isValid = healthPlanAuthorizationService.validateToken(token);
+        } catch (Exception e) {
+            System.out.println(e);
+            isValid = false;
+        }
+
+        if (!isValid)
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new JSONObject()
+                            .put("Authetication Error: ", "Invalid Token !")
+                            .toString());
+
         // Check if plan exists
         if (!healthPlanService.checkIfKeyExists(type + "_" + objectId)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -145,6 +189,28 @@ public class HealthPlanController {
             @RequestHeader HttpHeaders headers, @PathVariable String objectId)
             throws Exception {
 
+        // Authorize request
+        String authorization = headers.getFirst("Authorization");
+        if (authorization == null || authorization.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    new JSONObject().put("Error", "Empty Token !").toString());
+        }
+
+        boolean isValid;
+        try {
+            String token = authorization.split(" ")[1];
+            isValid = healthPlanAuthorizationService.validateToken(token);
+        } catch (Exception e) {
+            System.out.println(e);
+            isValid = false;
+        }
+
+        if (!isValid)
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new JSONObject()
+                            .put("Authetication Error: ", "Invalid Token !")
+                            .toString());
+
         // Check if plan exists
         if (!healthPlanService.checkIfKeyExists("plan" + "_" + objectId)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -164,6 +230,28 @@ public class HealthPlanController {
     public ResponseEntity<Object> patchHealthPlan(
             @RequestHeader HttpHeaders headers, @RequestBody String healthPlan,
             @PathVariable String objectId) throws IOException {
+
+        // Authorize request
+        String authorization = headers.getFirst("Authorization");
+        if (authorization == null || authorization.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    new JSONObject().put("Error", "Empty Token !").toString());
+        }
+
+        boolean isValid;
+        try {
+            String token = authorization.split(" ")[1];
+            isValid = healthPlanAuthorizationService.validateToken(token);
+        } catch (Exception e) {
+            System.out.println(e);
+            isValid = false;
+        }
+
+        if (!isValid)
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new JSONObject()
+                            .put("Authetication Error: ", "Invalid Token !")
+                            .toString());
 
         // Null & Empty Checks
         if (healthPlan == null || healthPlan.isEmpty()) {
@@ -199,6 +287,28 @@ public class HealthPlanController {
             @RequestBody String healthPlan, @PathVariable String objectId)
             throws IOException {
 
+        // Authorize request
+        String authorization = headers.getFirst("Authorization");
+        if (authorization == null || authorization.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    new JSONObject().put("Error", "Empty Token !").toString());
+        }
+
+        boolean isValid;
+        try {
+            String token = authorization.split(" ")[1];
+            isValid = healthPlanAuthorizationService.validateToken(token);
+        } catch (Exception e) {
+            System.out.println(e);
+            isValid = false;
+        }
+
+        if (!isValid)
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new JSONObject()
+                            .put("Authetication Error: ", "Invalid Token !")
+                            .toString());
+
         // Null & Empty Checks
         if (healthPlan == null || healthPlan.isEmpty()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -209,7 +319,7 @@ public class HealthPlanController {
 
         JSONObject jsonBody = new JSONObject(healthPlan);
 
-     // Validating JSON Body
+        // Validating JSON Body
         try {
             jsonValidator.validateJson(jsonBody);
         } catch (ValidationException ex) {
@@ -217,7 +327,7 @@ public class HealthPlanController {
                     new JSONObject().put("Error", ex.getMessage()).toString());
         }
 
-     // Check if plan exists
+        // Check if plan exists
         String key = "plan_" + objectId;
         if (!healthPlanService.checkIfKeyExists(key)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -236,7 +346,10 @@ public class HealthPlanController {
 
         String newEtag = healthPlanService.savePlanToRedis(jsonBody, key);
 
-        return ResponseEntity.ok().eTag(newEtag).body(new JSONObject()
-                .put("message: ", "Resource updated successfully on Put").toString());
+        return ResponseEntity.ok().eTag(newEtag)
+                .body(new JSONObject()
+                        .put("message: ",
+                                "Resource updated successfully on Put")
+                        .toString());
     }
 }
