@@ -1,5 +1,6 @@
 HELP.md
 target/
+bin/
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup

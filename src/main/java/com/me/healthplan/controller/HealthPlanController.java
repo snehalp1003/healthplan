@@ -3,7 +3,15 @@
  */
 package com.me.healthplan.controller;
 
+import java.io.UnsupportedEncodingException;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Map;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 
 import org.everit.json.schema.ValidationException;
 import org.json.JSONException;
@@ -21,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.me.healthplan.service.HealthPlanAuthorizationService;
 import com.me.healthplan.service.HealthPlanService;
 import com.me.healthplan.utility.JsonValidator;
 
@@ -37,11 +46,46 @@ public class HealthPlanController {
     @Autowired
     JsonValidator jsonValidator;
 
+    @Autowired
+    HealthPlanAuthorizationService healthPlanAuthorizationService;
+
+    @GetMapping(path = "token")
+    public ResponseEntity<Object> getToken()
+            throws UnsupportedEncodingException, NoSuchAlgorithmException,
+            NoSuchPaddingException, InvalidKeyException,
+            InvalidAlgorithmParameterException, IllegalBlockSizeException,
+            BadPaddingException {
+        String token = healthPlanAuthorizationService.generateToken();
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                " {\"Status\": \"Successful\" , \"Token\": " + token + "\" }");
+    }
+
     @PostMapping(path = "plan", produces = "application/json")
     public ResponseEntity<Object> createHealthPlan(
             @RequestHeader HttpHeaders headers,
             @RequestBody(required = false) String healthPlan)
             throws Exception, JSONException {
+
+        // Authorize request
+        boolean returnValue;
+        String authorization = headers.getFirst("Authorization");
+        if (authorization == null || authorization.isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    new JSONObject().put("Error", "Unauthorized !").toString());
+        }
+        try {
+            String token = authorization.split(" ")[1];
+            returnValue = healthPlanAuthorizationService.validateToken(token);
+        } catch (Exception e) {
+            throw new Exception("Invalid Token");
+        }
+
+        if (!returnValue)
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new JSONObject()
+                            .put("Authetication Error: ", "Session timed out!")
+                            .toString());
+
         // Null & Empty Checks
         if (healthPlan == null || healthPlan.isEmpty()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -81,6 +125,28 @@ public class HealthPlanController {
     public ResponseEntity<Object> getHealthPlan(
             @RequestHeader HttpHeaders headers, @PathVariable String objectId,
             @PathVariable String type) throws Exception, JSONException {
+
+        // Authorize request
+        boolean returnValue;
+        String authorization = headers.getFirst("Authorization");
+        if (authorization == null || authorization.isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    new JSONObject().put("Error", "Unauthorized !").toString());
+        }
+        try {
+            String token = authorization.split(" ")[1];
+            returnValue = healthPlanAuthorizationService.validateToken(token);
+        } catch (Exception e) {
+            throw new Exception("Invalid Token");
+        }
+
+        if (!returnValue)
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new JSONObject()
+                            .put("Authetication Error: ", "Session timed out!")
+                            .toString());
+
+        // Check if plan exists
         if (!healthPlanService.checkIfKeyExists(type + "_" + objectId)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new JSONObject()
@@ -99,6 +165,7 @@ public class HealthPlanController {
             }
         }
 
+        // Form key and get plan
         String key = type + "_" + objectId;
         Map<String, Object> plan = healthPlanService.getPlan(key);
 
@@ -112,7 +179,30 @@ public class HealthPlanController {
 
     @DeleteMapping(path = "plan/{objectId}", produces = "application/json")
     public ResponseEntity<Object> deleteHealthPlan(
-            @RequestHeader HttpHeaders headers, @PathVariable String objectId) {
+            @RequestHeader HttpHeaders headers, @PathVariable String objectId)
+            throws Exception {
+
+        // Authorize request
+        boolean returnValue;
+        String authorization = headers.getFirst("Authorization");
+        if (authorization == null || authorization.isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    new JSONObject().put("Error", "Unauthorized !").toString());
+        }
+        try {
+            String token = authorization.split(" ")[1];
+            returnValue = healthPlanAuthorizationService.validateToken(token);
+        } catch (Exception e) {
+            throw new Exception("Invalid Token");
+        }
+
+        if (!returnValue)
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new JSONObject()
+                            .put("Authetication Error: ", "Session timed out!")
+                            .toString());
+
+        // Check if plan exists
         if (!healthPlanService.checkIfKeyExists("plan" + "_" + objectId)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new JSONObject()
@@ -120,9 +210,10 @@ public class HealthPlanController {
                             .toString());
         }
 
+        // Form key and delete plan
         healthPlanService.deletePlan("plan" + "_" + objectId);
-        return ResponseEntity.ok()
-                .body(" {\"message\": \"Deleted plan successfully for objectId : "
+        return ResponseEntity.ok().body(
+                " {\"message\": \"Deleted plan successfully for objectId : "
                         + objectId + "\" }");
     }
 }
