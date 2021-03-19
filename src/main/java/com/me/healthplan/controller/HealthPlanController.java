@@ -3,6 +3,7 @@
  */
 package com.me.healthplan.controller;
 
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
@@ -22,6 +23,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -141,7 +143,7 @@ public class HealthPlanController {
     public ResponseEntity<Object> deleteHealthPlan(
             @RequestHeader HttpHeaders headers, @PathVariable String objectId)
             throws Exception {
-        
+
         // Check if plan exists
         if (!healthPlanService.checkIfKeyExists("plan" + "_" + objectId)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -155,5 +157,26 @@ public class HealthPlanController {
         return ResponseEntity.ok().body(
                 " {\"message\": \"Deleted plan successfully for objectId : "
                         + objectId + "\" }");
+    }
+
+    @PatchMapping(path = "/plan/{objectId}", produces = "application/json")
+    public ResponseEntity<Object> patchHealthPlan(
+            @RequestHeader HttpHeaders headers, @RequestBody String healthPlan,
+            @PathVariable String objectId) throws IOException {
+
+        JSONObject jsonBody = new JSONObject(healthPlan);
+
+        if (!healthPlanService.checkIfKeyExists("plan_" + objectId)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new JSONObject()
+                            .put("message", "ObjectId does not exist")
+                            .toString());
+        }
+
+        String key = "plan_" + objectId;
+        String newEtag = healthPlanService.savePlanToRedis(jsonBody, key);
+
+        return ResponseEntity.ok().eTag(newEtag).body(new JSONObject()
+                .put("message: ", "Resource updated successfully on Patch").toString());
     }
 }
