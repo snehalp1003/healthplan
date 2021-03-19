@@ -12,7 +12,7 @@ import java.security.PublicKey;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import com.me.healthplan.utility.JwtKeys;
+import com.me.healthplan.utility.AuthorizationKeys;
 
 /**
  * @author Snehal Patel
@@ -22,12 +22,12 @@ import com.me.healthplan.utility.JwtKeys;
 public class JwtConfig {
 
     @Bean
-    public JwtKeys getKeys() throws NoSuchAlgorithmException {
+    public AuthorizationKeys getKeys() throws NoSuchAlgorithmException {
         KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
         keyPairGenerator.initialize(2048);
         KeyPair keyPair = keyPairGenerator.generateKeyPair();
         PublicKey publicKey = keyPair.getPublic();
         PrivateKey privateKey = keyPair.getPrivate();
-        return new JwtKeys(publicKey, privateKey);
+        return new AuthorizationKeys(publicKey, privateKey);
     }
 }

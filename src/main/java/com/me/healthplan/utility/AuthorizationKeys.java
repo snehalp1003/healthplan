@@ -9,12 +9,12 @@ import java.security.PublicKey;
 /**
  * @author Snehal Patel
  */
-public class JwtKeys {
+public class AuthorizationKeys {
     
     private PublicKey publicKey;
     private PrivateKey privateKey;
 
-    public JwtKeys(PublicKey publicKey, PrivateKey privateKey) {
+    public AuthorizationKeys(PublicKey publicKey, PrivateKey privateKey) {
         this.publicKey = publicKey;
         this.privateKey = privateKey;
     }

@@ -66,26 +66,6 @@ public class HealthPlanController {
             @RequestBody(required = false) String healthPlan)
             throws Exception, JSONException {
 
-        // Authorize request
-        boolean returnValue;
-        String authorization = headers.getFirst("Authorization");
-        if (authorization == null || authorization.isBlank()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                    new JSONObject().put("Error", "Unauthorized !").toString());
-        }
-        try {
-            String token = authorization.split(" ")[1];
-            returnValue = healthPlanAuthorizationService.validateToken(token);
-        } catch (Exception e) {
-            throw new Exception("Invalid Token");
-        }
-
-        if (!returnValue)
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new JSONObject()
-                            .put("Authetication Error: ", "Session timed out!")
-                            .toString());
-
         // Null & Empty Checks
         if (healthPlan == null || healthPlan.isEmpty()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -126,26 +106,6 @@ public class HealthPlanController {
             @RequestHeader HttpHeaders headers, @PathVariable String objectId,
             @PathVariable String type) throws Exception, JSONException {
 
-        // Authorize request
-        boolean returnValue;
-        String authorization = headers.getFirst("Authorization");
-        if (authorization == null || authorization.isBlank()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                    new JSONObject().put("Error", "Unauthorized !").toString());
-        }
-        try {
-            String token = authorization.split(" ")[1];
-            returnValue = healthPlanAuthorizationService.validateToken(token);
-        } catch (Exception e) {
-            throw new Exception("Invalid Token");
-        }
-
-        if (!returnValue)
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new JSONObject()
-                            .put("Authetication Error: ", "Session timed out!")
-                            .toString());
-
         // Check if plan exists
         if (!healthPlanService.checkIfKeyExists(type + "_" + objectId)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -181,27 +141,7 @@ public class HealthPlanController {
     public ResponseEntity<Object> deleteHealthPlan(
             @RequestHeader HttpHeaders headers, @PathVariable String objectId)
             throws Exception {
-
-        // Authorize request
-        boolean returnValue;
-        String authorization = headers.getFirst("Authorization");
-        if (authorization == null || authorization.isBlank()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                    new JSONObject().put("Error", "Unauthorized !").toString());
-        }
-        try {
-            String token = authorization.split(" ")[1];
-            returnValue = healthPlanAuthorizationService.validateToken(token);
-        } catch (Exception e) {
-            throw new Exception("Invalid Token");
-        }
-
-        if (!returnValue)
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new JSONObject()
-                            .put("Authetication Error: ", "Session timed out!")
-                            .toString());
-
+        
         // Check if plan exists
         if (!healthPlanService.checkIfKeyExists("plan" + "_" + objectId)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)

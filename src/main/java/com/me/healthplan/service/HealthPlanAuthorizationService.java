@@ -10,7 +10,7 @@ import java.util.function.Function;
 
 import org.springframework.stereotype.Service;
 
-import com.me.healthplan.utility.JwtKeys;
+import com.me.healthplan.utility.AuthorizationKeys;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -23,10 +23,10 @@ import io.jsonwebtoken.SignatureAlgorithm;
 @Service
 public class HealthPlanAuthorizationService {
 
-    private final JwtKeys jwtKeys;
+    private final AuthorizationKeys authorizationKeys;
 
-    public HealthPlanAuthorizationService(JwtKeys jwtKeys) {
-        this.jwtKeys = jwtKeys;
+    public HealthPlanAuthorizationService(AuthorizationKeys authorizationKeys) {
+        this.authorizationKeys = authorizationKeys;
     }
     
     public String generateToken() {
@@ -38,7 +38,7 @@ public class HealthPlanAuthorizationService {
 
         return Jwts.builder().setClaims(claims).setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 10))
-                .signWith(SignatureAlgorithm.RS256, jwtKeys.getPrivateKey()).compact();
+                .signWith(SignatureAlgorithm.RS256, authorizationKeys.getPrivateKey()).compact();
     }
 
     public Boolean validateToken(String token) {
@@ -54,10 +54,7 @@ public class HealthPlanAuthorizationService {
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);
+        final Claims claims = Jwts.parser().setSigningKey(authorizationKeys.getPublicKey()).parseClaimsJws(token).getBody();
         return claimsResolver.apply(claims);
-    }
-    private Claims extractAllClaims(String token) {
-        return Jwts.parser().setSigningKey(jwtKeys.getPublicKey()).parseClaimsJws(token).getBody();
     }
 }
