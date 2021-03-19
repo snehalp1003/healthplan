@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -164,8 +165,17 @@ public class HealthPlanController {
             @RequestHeader HttpHeaders headers, @RequestBody String healthPlan,
             @PathVariable String objectId) throws IOException {
 
+        // Null & Empty Checks
+        if (healthPlan == null || healthPlan.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new JSONObject()
+                            .put("Error", "Empty Body in Request !")
+                            .toString());
+        }
+
         JSONObject jsonBody = new JSONObject(healthPlan);
 
+        // Check if plan exists
         if (!healthPlanService.checkIfKeyExists("plan_" + objectId)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new JSONObject()
@@ -173,10 +183,60 @@ public class HealthPlanController {
                             .toString());
         }
 
+        // Form key and perform patch
         String key = "plan_" + objectId;
         String newEtag = healthPlanService.savePlanToRedis(jsonBody, key);
 
+        return ResponseEntity.ok().eTag(newEtag)
+                .body(new JSONObject()
+                        .put("message: ",
+                                "Resource updated successfully on Patch")
+                        .toString());
+    }
+
+    @PutMapping(path = "/plan/{objectId}", produces = "application/json")
+    public ResponseEntity<Object> updatePlan(@RequestHeader HttpHeaders headers,
+            @RequestBody String healthPlan, @PathVariable String objectId)
+            throws IOException {
+
+        // Null & Empty Checks
+        if (healthPlan == null || healthPlan.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new JSONObject()
+                            .put("Error", "Empty Body in Request !")
+                            .toString());
+        }
+
+        JSONObject jsonBody = new JSONObject(healthPlan);
+
+     // Validating JSON Body
+        try {
+            jsonValidator.validateJson(jsonBody);
+        } catch (ValidationException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    new JSONObject().put("Error", ex.getMessage()).toString());
+        }
+
+     // Check if plan exists
+        String key = "plan_" + objectId;
+        if (!healthPlanService.checkIfKeyExists(key)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new JSONObject()
+                            .put("Message", "ObjectId does not exist")
+                            .toString());
+        }
+
+        // Get eTag value
+        String actualEtag = healthPlanService.getEtag(key, "eTag");
+        String eTag = headers.getFirst("If-Match");
+        if (eTag != null && !eTag.equals(actualEtag)) {
+            return ResponseEntity.status(HttpStatus.PRECONDITION_FAILED)
+                    .eTag(actualEtag).build();
+        }
+
+        String newEtag = healthPlanService.savePlanToRedis(jsonBody, key);
+
         return ResponseEntity.ok().eTag(newEtag).body(new JSONObject()
-                .put("message: ", "Resource updated successfully on Patch").toString());
+                .put("message: ", "Resource updated successfully on Put").toString());
     }
 }
