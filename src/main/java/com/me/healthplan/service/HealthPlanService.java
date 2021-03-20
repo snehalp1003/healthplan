@@ -91,7 +91,8 @@ public class HealthPlanService {
     private Map<String, Object> getOrDeleteData(String redisKey,
             Map<String, Object> outputMap, boolean isDelete) {
 
-        Set<String> keys = healthPlanDao.getKeys(redisKey + "*");
+        Set<String> keys = healthPlanDao.getKeys(redisKey + "_*");
+        keys.add(redisKey);
         for (String key : keys) {
             if (key.equals(redisKey)) {
                 if (isDelete) {
@@ -114,7 +115,7 @@ public class HealthPlanService {
                 System.out.println("Key to be searched :" + key
                         + "--------------" + newStr);
                 Set<String> members = healthPlanDao.sMembers(key);
-                if (members.size() > 1) {
+                if (members.size() > 1 || newStr.equals("linkedPlanServices")) {
                     List<Object> listObj = new ArrayList<Object>();
                     for (String member : members) {
                         if (isDelete) {

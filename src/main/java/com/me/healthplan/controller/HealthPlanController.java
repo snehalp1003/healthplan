@@ -13,6 +13,7 @@ import java.util.Map;
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
+import javax.ws.rs.BadRequestException;
 
 import org.everit.json.schema.ValidationException;
 import org.json.JSONException;
@@ -58,9 +59,15 @@ public class HealthPlanController {
             NoSuchPaddingException, InvalidKeyException,
             InvalidAlgorithmParameterException, IllegalBlockSizeException,
             BadPaddingException {
-        String token = healthPlanAuthorizationService.generateToken();
-        return ResponseEntity.status(HttpStatus.CREATED).body(
-                " {\"Status\": \"Successful\" , \"Token\": " + token + "\" }");
+        String token;
+        try {
+            token = healthPlanAuthorizationService.generateToken();
+        } catch (Exception e) {
+            throw new BadRequestException(e.getMessage());
+        }
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new JSONObject().put("token", token).toString());
     }
 
     @PostMapping(path = "plan", produces = "application/json")
@@ -76,19 +83,27 @@ public class HealthPlanController {
                     new JSONObject().put("Error", "Empty Token !").toString());
         }
 
-        boolean isValid;
-        try {
-            String token = authorization.split(" ")[1];
-            isValid = healthPlanAuthorizationService.validateToken(token);
-        } catch (Exception e) {
-            System.out.println(e);
-            isValid = false;
-        }
+        String isValid = healthPlanAuthorizationService
+                .authorize(authorization);
 
-        if (!isValid)
+        if (isValid.equals("Improper Format of Token"))
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED).body(
+                            new JSONObject()
+                                    .put("Authetication Error: ",
+                                            "Improper Format of Token !")
+                                    .toString());
+
+        if (isValid.equals("Invalid Token"))
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new JSONObject()
                             .put("Authetication Error: ", "Invalid Token !")
+                            .toString());
+
+        if (isValid.equals("Token has expired"))
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new JSONObject()
+                            .put("Authetication Error: ", "Token has expired !")
                             .toString());
 
         // Null & Empty Checks
@@ -138,19 +153,27 @@ public class HealthPlanController {
                     new JSONObject().put("Error", "Empty Token !").toString());
         }
 
-        boolean isValid;
-        try {
-            String token = authorization.split(" ")[1];
-            isValid = healthPlanAuthorizationService.validateToken(token);
-        } catch (Exception e) {
-            System.out.println(e);
-            isValid = false;
-        }
+        String isValid = healthPlanAuthorizationService
+                .authorize(authorization);
 
-        if (!isValid)
+        if (isValid.equals("Improper Format of Token"))
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED).body(
+                            new JSONObject()
+                                    .put("Authetication Error: ",
+                                            "Improper Format of Token !")
+                                    .toString());
+
+        if (isValid.equals("Invalid Token"))
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new JSONObject()
                             .put("Authetication Error: ", "Invalid Token !")
+                            .toString());
+
+        if (isValid.equals("Token has expired"))
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new JSONObject()
+                            .put("Authetication Error: ", "Token has expired !")
                             .toString());
 
         // Check if plan exists
@@ -196,19 +219,27 @@ public class HealthPlanController {
                     new JSONObject().put("Error", "Empty Token !").toString());
         }
 
-        boolean isValid;
-        try {
-            String token = authorization.split(" ")[1];
-            isValid = healthPlanAuthorizationService.validateToken(token);
-        } catch (Exception e) {
-            System.out.println(e);
-            isValid = false;
-        }
+        String isValid = healthPlanAuthorizationService
+                .authorize(authorization);
 
-        if (!isValid)
+        if (isValid.equals("Improper Format of Token"))
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED).body(
+                            new JSONObject()
+                                    .put("Authetication Error: ",
+                                            "Improper Format of Token !")
+                                    .toString());
+
+        if (isValid.equals("Invalid Token"))
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new JSONObject()
                             .put("Authetication Error: ", "Invalid Token !")
+                            .toString());
+
+        if (isValid.equals("Token has expired"))
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new JSONObject()
+                            .put("Authetication Error: ", "Token has expired !")
                             .toString());
 
         // Check if plan exists
@@ -238,19 +269,27 @@ public class HealthPlanController {
                     new JSONObject().put("Error", "Empty Token !").toString());
         }
 
-        boolean isValid;
-        try {
-            String token = authorization.split(" ")[1];
-            isValid = healthPlanAuthorizationService.validateToken(token);
-        } catch (Exception e) {
-            System.out.println(e);
-            isValid = false;
-        }
+        String isValid = healthPlanAuthorizationService
+                .authorize(authorization);
 
-        if (!isValid)
+        if (isValid.equals("Improper Format of Token"))
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED).body(
+                            new JSONObject()
+                                    .put("Authetication Error: ",
+                                            "Improper Format of Token !")
+                                    .toString());
+
+        if (isValid.equals("Invalid Token"))
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new JSONObject()
                             .put("Authetication Error: ", "Invalid Token !")
+                            .toString());
+
+        if (isValid.equals("Token has expired"))
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new JSONObject()
+                            .put("Authetication Error: ", "Token has expired !")
                             .toString());
 
         // Null & Empty Checks
@@ -264,15 +303,30 @@ public class HealthPlanController {
         JSONObject jsonBody = new JSONObject(healthPlan);
 
         // Check if plan exists
-        if (!healthPlanService.checkIfKeyExists("plan_" + objectId)) {
+        String key = "plan_" + objectId;
+        if (!healthPlanService.checkIfKeyExists(key)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new JSONObject()
                             .put("message", "ObjectId does not exist")
                             .toString());
         }
 
-        // Form key and perform patch
-        String key = "plan_" + objectId;
+        // Get eTag value
+        String actualEtag = healthPlanService.getEtag(key, "eTag");
+        String eTag = headers.getFirst("If-Match");
+
+        if (eTag == null || eTag.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new JSONObject().put("message", "eTag missing !!")
+                            .toString());
+        }
+
+        if (eTag != null && !eTag.equals(actualEtag)) {
+            return ResponseEntity.status(HttpStatus.PRECONDITION_FAILED)
+                    .eTag(actualEtag).build();
+        }
+
+        // Perform patch
         String newEtag = healthPlanService.savePlanToRedis(jsonBody, key);
 
         return ResponseEntity.ok().eTag(newEtag)
@@ -294,19 +348,27 @@ public class HealthPlanController {
                     new JSONObject().put("Error", "Empty Token !").toString());
         }
 
-        boolean isValid;
-        try {
-            String token = authorization.split(" ")[1];
-            isValid = healthPlanAuthorizationService.validateToken(token);
-        } catch (Exception e) {
-            System.out.println(e);
-            isValid = false;
-        }
+        String isValid = healthPlanAuthorizationService
+                .authorize(authorization);
 
-        if (!isValid)
+        if (isValid.equals("Improper Format of Token"))
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED).body(
+                            new JSONObject()
+                                    .put("Authetication Error: ",
+                                            "Improper Format of Token !")
+                                    .toString());
+
+        if (isValid.equals("Invalid Token"))
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new JSONObject()
                             .put("Authetication Error: ", "Invalid Token !")
+                            .toString());
+
+        if (isValid.equals("Token has expired"))
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new JSONObject()
+                            .put("Authetication Error: ", "Token has expired !")
                             .toString());
 
         // Null & Empty Checks
@@ -339,10 +401,20 @@ public class HealthPlanController {
         // Get eTag value
         String actualEtag = healthPlanService.getEtag(key, "eTag");
         String eTag = headers.getFirst("If-Match");
+
+        if (eTag == null || eTag.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new JSONObject().put("message", "eTag missing !!")
+                            .toString());
+        }
+
         if (eTag != null && !eTag.equals(actualEtag)) {
             return ResponseEntity.status(HttpStatus.PRECONDITION_FAILED)
                     .eTag(actualEtag).build();
         }
+
+        // Delete old plan
+        healthPlanService.deletePlan(key);
 
         String newEtag = healthPlanService.savePlanToRedis(jsonBody, key);
 
