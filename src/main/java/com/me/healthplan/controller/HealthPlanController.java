@@ -8,6 +8,7 @@ import java.io.UnsupportedEncodingException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
 import java.util.Map;
 
 import javax.crypto.BadPaddingException;
@@ -16,8 +17,10 @@ import javax.crypto.NoSuchPaddingException;
 import javax.ws.rs.BadRequestException;
 
 import org.everit.json.schema.ValidationException;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -33,10 +36,10 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.me.healthplan.HealthplanApplication;
 import com.me.healthplan.service.HealthPlanAuthorizationService;
 import com.me.healthplan.service.HealthPlanService;
 import com.me.healthplan.utility.JsonValidator;
-
 /**
  * @author Snehal Patel
  */
@@ -52,6 +55,9 @@ public class HealthPlanController {
 
     @Autowired
     HealthPlanAuthorizationService healthPlanAuthorizationService;
+
+    @Autowired
+    private RabbitTemplate template;
 
     @GetMapping(path = "token")
     public ResponseEntity<Object> getToken()
@@ -135,6 +141,9 @@ public class HealthPlanController {
         }
 
         String newEtag = healthPlanService.savePlanToRedis(jsonBody, planKey);
+
+        // break into objects and send to queue
+        sendToIndex(new JSONObject(healthPlan), "");
 
         return ResponseEntity.status(HttpStatus.CREATED).eTag(newEtag)
                 .body(" {\"message\": \"Created data with key: "
@@ -328,6 +337,8 @@ public class HealthPlanController {
 
         // Perform patch
         String newEtag = healthPlanService.savePlanToRedis(jsonBody, key);
+        
+        sendToIndex(new JSONObject(healthPlan), "");
 
         return ResponseEntity.ok().eTag(newEtag)
                 .body(new JSONObject()
@@ -418,10 +429,76 @@ public class HealthPlanController {
 
         String newEtag = healthPlanService.savePlanToRedis(jsonBody, key);
 
+        // index object
+        Map<String, String> actionMap = new HashMap<>();
+        actionMap.put("operation", "SAVE");
+        actionMap.put("uri", "http://localhost:9200");
+        actionMap.put("index", "planindex");
+        actionMap.put("body", healthPlan);
+
+        System.out.println("Sending message: " + actionMap);
+
+        template.convertAndSend(HealthplanApplication.MESSAGE_QUEUE, actionMap);
+
         return ResponseEntity.ok().eTag(newEtag)
                 .body(new JSONObject()
                         .put("message: ",
                                 "Resource updated successfully on Put")
                         .toString());
+    }
+
+    public void sendToIndex(JSONObject json, String pid) {
+        try {
+            JSONObject newJson = new JSONObject();
+
+            for (Object key : json.keySet()) {
+                String attributeKey = String.valueOf(key);
+                Object attributeVal = json.get(String.valueOf(key));
+                Object id = json.get("objectId");
+                if (attributeKey.equals("planserviceCostShares")) {
+                    JSONObject obj = (JSONObject) attributeVal;
+                    obj.put("objectType", "planservice_membercostshare");
+                    attributeVal = obj;
+                }
+                if (attributeVal instanceof JSONObject) {
+                    sendToIndex((JSONObject) attributeVal, (String) id);
+                } else if (attributeVal instanceof JSONArray) {
+                    JSONArray arr = json.getJSONArray((String) key);
+                    for (int i = 0; i < arr.length(); i++) {
+                        sendToIndex(arr.getJSONObject(i), (String) id);
+                    }
+                } else {
+                    newJson.put(attributeKey, attributeVal);
+                }
+            }
+
+            JSONObject emd = new JSONObject();
+            boolean isChild = false;
+            emd.put("name", (String) json.get("objectType"));
+            if (pid.length() != 0) {
+                emd.put("parent", pid);
+                isChild = true;
+            }
+            newJson.put("plan_service", emd);
+            String id = json.getString("objectId");
+            System.out.println("NEW JSON:\n" + newJson.toString());
+            publishToRabbitMq(newJson.toString(), id, isChild);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void publishToRabbitMq(String json, String id, boolean isChild) {
+        // index objects
+        Map<String, String> actionMap = new HashMap<>();
+        actionMap.put("operation", "SAVE");
+        actionMap.put("uri", "http://localhost:9200");
+        actionMap.put("index", "planindex");
+        actionMap.put("id", id);
+        actionMap.put("isChild", String.valueOf(isChild));
+        actionMap.put("body", json);
+        template.convertAndSend(HealthplanApplication.topicExchange,
+                "snehal.indexing.queue", actionMap);
+        System.out.println("Sending message: " + actionMap);
     }
 }

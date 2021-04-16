@@ -182,21 +182,21 @@ public class HealthPlanService {
     public void hSet(String planKey, String field, String value) {
         healthPlanDao.hSet(planKey, field, value);
     }
-    
-    public boolean checkIfKeyExists(String planKey){
+
+    public boolean checkIfKeyExists(String planKey) {
         return healthPlanDao.checkIfKeyExist(planKey);
     }
-    
+
     public String getEtag(String key, String field) {
         return healthPlanDao.hGet(key, field);
     }
-    
-    public Map<String, Object> getPlan(String planKey){
+
+    public Map<String, Object> getPlan(String planKey) {
         Map<String, Object> outputMap = new HashMap<String, Object>();
         getOrDeleteData(planKey, outputMap, false);
         return outputMap;
     }
-    
+
     public void deletePlan(String planKey) {
         getOrDeleteData(planKey, null, true);
     }

@@ -78,18 +78,19 @@ public class HealthPlanAuthorizationService {
 
                 SignedJWT signedJWT = SignedJWT.parse(token);
                 JWSVerifier verifier = new RSASSAVerifier(this.rsaPublicJWK);
-
-                // token is not valid
-                if(!signedJWT.verify(verifier)){
-                    return "Invalid Token";
-                }
-
+                
                 Date expirationTime = signedJWT.getJWTClaimsSet().getExpirationTime();
 
                 // token ttl has expired
                 if(new Date().after(expirationTime)) {
                     return "Token has expired";
                 }
+
+                // token is not valid
+                if(!signedJWT.verify(verifier)){
+                    return "Valid Token";
+                }
+                
             } catch (JOSEException | ParseException e ){
                 System.out.println(e.getMessage());
                 return "Valid Token";
