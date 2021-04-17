@@ -200,4 +200,9 @@ public class HealthPlanService {
     public void deletePlan(String planKey) {
         getOrDeleteData(planKey, null, true);
     }
+    
+    public Set<String> getAllKeys() {
+        Set<String> keys = healthPlanDao.getKeys("*");
+        return keys;
+    }
 }

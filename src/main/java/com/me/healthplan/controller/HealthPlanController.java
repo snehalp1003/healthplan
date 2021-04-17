@@ -9,7 +9,9 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -40,6 +42,7 @@ import com.me.healthplan.HealthplanApplication;
 import com.me.healthplan.service.HealthPlanAuthorizationService;
 import com.me.healthplan.service.HealthPlanService;
 import com.me.healthplan.utility.JsonValidator;
+
 /**
  * @author Snehal Patel
  */
@@ -258,6 +261,9 @@ public class HealthPlanController {
                             .put("Message", "ObjectId does not exist")
                             .toString());
         }
+        
+        // Call method to delete all indexes
+        deleteIndexes();
 
         // Form key and delete plan
         healthPlanService.deletePlan("plan" + "_" + objectId);
@@ -337,7 +343,7 @@ public class HealthPlanController {
 
         // Perform patch
         String newEtag = healthPlanService.savePlanToRedis(jsonBody, key);
-        
+
         sendToIndex(new JSONObject(healthPlan), "");
 
         return ResponseEntity.ok().eTag(newEtag)
@@ -423,22 +429,17 @@ public class HealthPlanController {
             return ResponseEntity.status(HttpStatus.PRECONDITION_FAILED)
                     .eTag(actualEtag).build();
         }
+        
+        // Delete indexes before updating for PUT
+        deleteIndexes();
 
         // Delete old plan
         healthPlanService.deletePlan(key);
 
         String newEtag = healthPlanService.savePlanToRedis(jsonBody, key);
-
-        // index object
-        Map<String, String> actionMap = new HashMap<>();
-        actionMap.put("operation", "SAVE");
-        actionMap.put("uri", "http://localhost:9200");
-        actionMap.put("index", "planindex");
-        actionMap.put("body", healthPlan);
-
-        System.out.println("Sending message: " + actionMap);
-
-        template.convertAndSend(HealthplanApplication.MESSAGE_QUEUE, actionMap);
+        
+        // break into objects and send to queue
+        sendToIndex(new JSONObject(healthPlan), "");
 
         return ResponseEntity.ok().eTag(newEtag)
                 .body(new JSONObject()
@@ -500,5 +501,34 @@ public class HealthPlanController {
         template.convertAndSend(HealthplanApplication.topicExchange,
                 "snehal.indexing.queue", actionMap);
         System.out.println("Sending message: " + actionMap);
+    }
+    
+    public void deleteIndexes() {
+        Set<String> keySet = new HashSet<>();
+        Set<String> trimmedKeySet = new HashSet<>();
+
+        keySet = healthPlanService.getAllKeys();
+
+        for (String key : keySet) {
+            String trimmedKey = key.contains("_") ? key.split("_")[1] : key;
+            System.out.println("******** TRIMMED KEYSET ********* " + key);
+            trimmedKeySet.add(trimmedKey);
+        }
+
+        // index object
+        Map<String, String> actionMap = new HashMap<>();
+        actionMap.put("operation", "DELETE");
+        actionMap.put("uri", "http://localhost:9200");
+        actionMap.put("index", "planindex");
+
+        for (String deleteKey : trimmedKeySet) {
+            actionMap.put("body", "{ \"objectId\" : \"" + deleteKey + "\" }");
+
+            System.out.println("Sending message: " + actionMap);
+
+            template.convertAndSend(HealthplanApplication.topicExchange,
+                    "snehal.indexing.queue", actionMap);
+
+        }
     }
 }
